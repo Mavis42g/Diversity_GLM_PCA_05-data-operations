@@ -1,0 +1,81 @@
+---
+title: "5: Introduction to machine learning - Exercise"
+author: "Wilhelmine Bach, Dominik Kirschner, Fabian Fopp & Camille Albouy"
+date: "22 8 2022"
+output: html_document
+html_document: default
+---
+
+### Intro 
+Now that you have learned the basics of LM, GLM and unsupervised machine learning you should be able to solve this exercise. 
+
+You will again work on the bird data set you know already from the tutorial. In addition, we will provide you with a number of additional species occurring in Switzerland. You will have land cover information (e.g. forest cover) for each grid cell as well as basic environmental data (e.g. temperature). 
+
+Imagine you are researching bird species in Switzerland and you want to identify the variables driving the patterns of species richness.
+
+### You will have these aims:
+
+#### 1. Load additional bird species into the data.  
+    1. Merge the environmental and bird variables and summarize your environmental data set and explain what you see.
+    2. Are there any correlations or missing data? 
+    3. If so, try to fill the missing values if possible, otherwise discard the rows. Find the most and least common bird species in the data.  
+<br>
+
+#### 2. Calculate Species richness  
+    1. How many species do we have in total, what does this tell us about the species composition?  
+    2. Calculate species richness per grid cell (add a new column with the variable species richness).  
+<br>
+
+#### 3. Build a model to explain species richness by applying a GLM with either gaussian, binomial of poisson family and the right link-function  
+    1. Explain your choice of model family, report your model output (Coefficients, p values, model-fit) and give an indication of which variables lead to an increase or decrease of  species richness.   
+    2. Report the estimated species richness, for 2000m elevation, 10°C temp, 600mm precipitation, 10 for slope, 20 forest.edge, 50 forest, 55 grassland, 2300m distance to water, 4 buildings.  
+    3. Is there something that could be improved, is this model biological meaningful?  
+<br>
+
+#### 4. PCAs can not only inform you on correlations within data, but can be powerful in creating "independent" variables
+    1. Run a PCA on the variables, extract the axes values for all axes you need to explain more than 50% of the variance, and then use these axes in a GLM with species richness.  
+    2. How could you interpret the results of this model?  
+    3. compared to the GLM with all the environmental variables? Elaborate on the difficulties of this approach. 
+<br>
+
+```{r 1 - example code}
+# load necessary libraries
+library (ade4)
+library(factoextra)
+
+# Integrate the additional bird species information to the existing data
+
+files <- list.files("data/bird_swiss/", pattern = "*.txt") ### load all filenames in the bird_swiss folder
+birdnames <- gsub(".txt", "", files ) ###remove the .TXT, gives us the cleaned names we need
+bird_list <- list() ### create empty list to save the loop output
+
+# Write a for loop reading in the presence absence matrices that we have provided and add them to the list
+# the following pseudocode will help you
+# for(i in ){
+#   
+#   # read in presence absence data for species
+#   
+#   pa <- read.table()
+#   
+#   # rename the columns after the bird species
+#   
+#   # save the df in the list
+# 
+# }
+
+```
+
+```{r 2 }
+
+```
+
+```{r 3 }
+
+```
+
+```{r 4 }
+#you can use the factoextra package here, it has helper functions to extract PCA axis values 
+#remember: the help function will provide more information if you are stuck with a package
+
+```
+

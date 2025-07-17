@@ -1,0 +1,563 @@
+---
+title: '5: Introduction to machine learning'
+author: "Wilhelmine Bach, Dominik Kirschner, Fabian Fopp & Camille Albouy"
+date: "22 8 2022"
+output: html_document
+html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Preparation
+
+In this tutorial, we will use what you have learned before to make the transition between data science and machine learning. In order to do that, we will explore a data set that contains the presence and absence of three bird species in Switzerland together with a few environmental variables at 1 km resolution.  
+
+The data set we are going to use is originally used for a SDM (species distribution model) course, so keep that in mind. SDMs use algorithms to predict the spatial distribution of species based on environmental data. The environmental data is typically extracted from raster data cropped to the geographical region of interest. From the environmental data and the occurrence of the species of interest, a model is built that explains the relationship between the species occurrence and the environment. This model is then used to predict the species occurrence to other spatial regions or even into the future. SDMs are a useful tool to understand how environmental conditions affect species or for ecological forecasting for example in conservation. If you want to learn how to build, evaluate and use SDMs, this course in the next spring semester might be for you: https://ele.ethz.ch/education/landscape_modelling.html
+
+Here, we prepared and extracted some of the data for you already. Let's explore it a little bit first and then have a look the relationship between species occurrences and environmental factors.
+
+First, we will load and explore the data
+
+```{r Load data sset}
+# load the data set, most data you will encounter will be saved either as .txt or.csv format
+bird_model_mat <- read.csv(file = "data/bird_env_dat.csv")
+
+# change all "." in variable names to "_", in order to avoid confusion
+colnames(bird_model_mat)
+colnames(bird_model_mat) <- gsub("\\.","_", colnames(bird_model_mat))
+colnames(bird_model_mat)
+
+class(bird_model_mat)
+# the class of the file is a data.frame 
+
+dim(bird_model_mat)
+# we have 472 observations (gridcells in Switzerland) and 15 variables
+
+# check the 6 first lines of the data frame
+head(bird_model_mat) 
+
+# check the 6 last lines of the data frame
+tail(bird_model_mat) 
+
+```
+
+Here we see that we have the following variables at our disposal
+
+- KoordID: a unique ID for each sampling location. It is composed of the first three figures of the x- and y-coordinates (km)
+
+- x: Longitude coordinate of each gridcell
+
+- y: Latitude coordinate of each gridcell
+
+Presences and absences that have been collected by biodiversity monitoring
+
+- whinchat: presence (1) or absence (0) for the whinchat (*Saxicola rubetra*) in Switzerland
+
+- ptarmigan: presence (1) or absence (0) of the alpine rock ptarmigan (*Lagopus muta*) in Switzerland
+
+- dipper: presence (1) or absence (0) of the white throated dipper (*Cinclus cinclus*) in Switzerland
+
+
+<div>
+![The study three species: Whinchat (left), Alpine Rock Ptarmigan (middle) and White-throated Dipper (right). Sources: <a href="https://commons.wikimedia.org/w/index.php?curid=22380723">Frank Vassen</a>, <a href="https://naturfotografie-fopp.ch">Fabian Fopp</a>, <a href="https://naturfotografie-fopp.ch">Fabian Fopp</a>.](birds.jpg)
+</div>
+
+
+Environmental variables that have been extracted from rasters or shapefiles
+
+- elev_birds: elevation extracted from the gridcell, m
+
+- prec_birds: precipitation extracted from the gridcell, mm
+
+- temp_birds: temperature extracted from the Chelsea temperature grid, C°
+
+- forest_edge_sum: percentage of forest edge per gridcell
+
+- forest_sum: percentage of forest per gridcell
+
+- grassland_sum: percentage of grassland per gridcell
+
+- water_dist: distance to nearest body of water per gridcell
+
+- buildings_sum: sum of buildings within the grid cell
+
+
+First, let's have a look at the distribution of the three selected bird species in Switzerland. We will plot it as a raster to get an idea of the data behind it. 
+
+```{r plot data}
+# loading the raster library
+library("raster")
+
+raster::plot(raster::rasterFromXYZ(bird_model_mat[,2:6]))
+
+```
+
+We see that the three species have quite different distributions. The Ptarmigan is perfectly adapted to high Alpine environments and is therefore mainly found in the Alpine parts of Switzerland. In contrary, the Dipper can be found close to fast flowing, clean waters and the whinchat is building its nests in meadows, therefore we probably find it in extensively used grasslands.   
+
+<b>Check in 1:</b>
+
+Before we move on and to warm you up for whats to come, we need to be sure if the data set is complete, we know the structure, check for missing data and get a summary of the values. Can you identify the columns with missing data and the minimum and maximum elevation?
+
+```{r check in 1}
+
+# first identify the structure of your data
+
+# then call the first 10 rows of the header
+
+# we want to know where or if we have NAs in our data
+
+#if there are NAs, count them per column
+
+# get some summary statistics and the minimum and maximum values of elevation
+
+```
+
+
+<p>
+  <a class="btn btn-primary" data-toggle="collapse" href="#collapseExample1" role="button" aria-expanded="false" aria-controls="collapseExample1">
+   Click to see the solution
+  </a>
+</p>
+<div class="collapse" id="collapseExample1">
+<div class="card card-body"> 
+
+  <b>A good habit is to look at the structure and the header of your data. think carefully what type of data you expect in the columns.
+  </b>
+  
+```{r check in 1.1 solution}
+
+# first identify the structure of your data
+str(bird_model_mat)
+
+```
+<b>We have, as mentioned above, 15 columns with 472 observations. </b>
+ 
+ 
+```{r check in 1.2 solution}
+
+# first look at the header to see the first 10 rows
+head(bird_model_mat, n = 10)
+
+# to be sure we call colsums() to show us columns with NA
+colnames(bird_model_mat)[colSums(is.na(bird_model_mat)) > 0]
+
+#count the number of NA
+colSums(is.na(bird_model_mat))
+
+#summary statistics
+summary(bird_model_mat)
+
+```
+ 
+ </div>
+</div>
+
+
+
+Indeed, there are some NA values within the temperature column. This is something you will often encounter in ecological data and there are several approaches to dealing with it. Luckily, there is no other column with NAs. We also see that our elevation ranges from 249.6 m a.s.l to 3120.0m a.s.l. The summary statistic can help you to get a grasp of your data and often shows you if there is something off.
+
+Now lets think about a solution to our missing data problem. We could either accept that some sites are missing and exclude all of them for further analysis, or we try to predict the precipitation and fill in the data based on another variable by a simple model. This is not something we should do all the time, but in certain cases and with high correlation of variables, it can work.
+
+## PCA
+
+Before we use the environmental data to explain the ecological observations, we will get to know our variables a bit better. To have a look at the correlations between the environmental variables, we can use a principal component analysis (PCA). A PCA is a basic form of multivariate data analysis based on projection methods and therefore falls under the umbrella of unsupervised machine learning. Basically, the dimensionality of the data is reduced to fewer axes, which can then be analyzed more easily. In our case, there are nine explanatory (environmental) variables in the data. The PCA will project the points into a 9-dimensional space and then step by step try to find a 'good' two dimensional recreation of this data. This goes really fast and we don't have any control over the process but at each step, the PCA calculates the residual variance, meaning the variance that is not explained by the projection. In the end the PCA outputs the projection with the residual variance minimized by least squares. Basically, PCA helps identifying relationships among different variables and coupling them, by trying different combinations and giving back the one with the smallest left over unexplained variance. 
+
+There are many ways to perform a PCA. Here we will show you a basic example. When performing a PCA on your own data, make sure to read into the different assumptions of the different models and chose one method that goes with your data, your choice of plotting etc. 
+First we have to make sure that our data set does not contain any NAs. 
+
+```{r check NAs}
+any(is.na(bird_model_mat))
+```
+Here we see that we have NAs in the dataset, so we'll have to cut those out. We are also in this step solely interested in the environmental variables and have to exclude the others from the dataset. Note that we are excluding the ecologically meaningless "KoordID" in the PCA. 
+
+
+```{r prepare dataset PCA}
+bird_model_small <-  bird_model_mat[,!colnames(bird_model_mat) %in% c("KoordID", "x", "y", "whinchat", "ptarmigan", "dipper")]
+
+bird_model_small <- na.omit(bird_model_small)
+```
+
+Now we re going to run a full PCA to investigate how the environmental variables correlate. We are going to use the dudi.pca() function in the ade4 package. 'dudi' stands for duality diagram which is one method of PCA. Another approach would be to use the prcomp() function in base R. Depending on what function you use, the class of the PCA object will vary and therefore so will the treatment of the output. The general structure however, remains the same across methods. 
+
+```{r}
+library (ade4)
+names(bird_model_small)
+
+bird_pca_dudi <- dudi.pca(bird_model_small, 
+                         scale = T, center = T, 
+                         scannf = FALSE, nf = 9)
+```
+
+In this function, we can scale and center the data directly prior to analysis. Now all variables have a standard deviation of 1 and a mean of 0 which makes the variables comparable in the n-dimensional space. The 'nf' argument lets us chose how many axes we want to keep in the analysis. Here we are keeping all nine axes to first look at the full variation of the data. 
+
+```{r }
+class(bird_pca_dudi)
+names(bird_pca_dudi)
+
+summary(bird_pca_dudi) #call a summary screen for the PCA
+```
+
+The dudi.pca() function outputs an object of class dudi with 13 subobjects inside. You can research what each of them represents by going into the helpfile for the dudi.pca() function. Now we'll look at how much variation is explained by the individual axes and how many axes it takes to explain all the variation in the data. Calling the summary() function on the dudi object, gives us quite a lot of information, like explained variance per axis or the eigenvalues. However, we will extract all this information manually as this helps to understand how PCA results are build up. 
+
+```{r }
+bird_pca_dudi$eig
+sum(bird_pca_dudi$eig)
+# this gets you the eigenvalues of the individual axes
+
+perc <- round((bird_pca_dudi$eig/sum(bird_pca_dudi$eig))*100,2)
+perc
+
+sum(perc)
+cumsum(perc) 
+```
+
+Looking at the percentages extracted from the dudi.PCA, we see that the first axis explains over 36 % of the total variation and that the second axis explains another 20 %. Together, the first two axes represent 50 % of the total variation in the data. The axes are always given in descending order of explained variation. There is no hard rule how much explained variation has to be considered in your data. This largely depends on your data and its variability. The answer lies somewhere between 50 and 95 % typically. Here, we want to consider a total of 70 % explained variation. In this case that means we have to look at the first four axes.
+
+Let's check which variables contribute to which axes and what that tells us about the dimensions of the data. 
+
+
+```{r dudi PCA }
+bird_pca_dudi$co
+```
+
+On PC1 the most important factors are elevation and temperature (loadings of over 0.9 respectively). This axis also explains the most variation in the overall data, which shows us that elevation and temperature are likely to be most important overall at explaining the variation in the data. 
+The most important factors on PC2 are the are the percentage of forest cover and forest. PC3 & PC4 are both most highly explained by the distance to water and precipitation and the occurrence of one of the species.
+
+This can already tell us quite a lot about the environmental variables we have at hand. Generally, the higher two factors are together on the same axis, the more correlated they are. We can confirm that with a little correlation analysis. 
+
+```{r }
+correlation_variables <- cor(bird_model_small)
+```
+
+Here we see that indeed temperature and elevation are highly correlated, but less so distance to water and precipitation and forest and forest edge. 
+
+Lastly, let's plot all of our variables together. 
+
+```{r factominer PCA }
+s.corcircle(bird_pca_dudi$co)
+```
+
+Looking at this plot, we can see that certain variables cluster together, like forest edge and and forest sum, for example. These variables are likely to explain the same variation in the data, even if not correlated. The only variables to be truly correlated (on the same axis) seem to be temperature and elevation. In this form of a PCA, positively correlated variables often cluster together, negatively correlated ones look in opposite directions.
+Let's have another look at the same variables with the points (sites) overlaid. Dudi.pcas are slightly trickier to plot, therefore we are drawing on help from the 'factoextra' package. 
+
+```{r }
+library(factoextra)
+biplot(bird_pca_dudi, cex = 0.1)
+
+fviz_pca_biplot(bird_pca_dudi, 
+                label = "var")
+```
+
+To summarize, PCA is a great tool if you are confronted with highly correlated, multivariate data. It allows to simplify your data, quickly shows correlations and the principal components of the axis can even be extracted and used as variables within linear models. 
+
+## Linear Models
+
+As you heard in the theoretical introduction already, linear models are one way to describe relationships within your data. Usually your goal with a linear model (LM) is to predict a variable (e.g. temperature) as a function of other variables. Remember our missing temperature values? Lets see if we find a connection between temperature and one of the other variables. First, let us plot some of the variables against each other.
+
+```{r}
+par(mfrow = c(1,3))
+  plot(bird_model_mat$prec_birds, bird_model_mat$temp_birds, xlab='precipitation', ylab='temperature')
+  plot(bird_model_mat$elev_birds, bird_model_mat$prec_birds, xlab='elevation', ylab='precipitation')
+  plot(bird_model_mat$elev_birds, bird_model_mat$temp_birds, xlab='elevation', ylab='temperature')
+
+```
+
+We see that the only variable with a clear linear relation to temperature is elevation. This means in simple words: temperature at a given elevation can be explained as a function of elevation. Take a moment and think if this nearly perfect relationship is realistic. In reality, ecological data rarely looks that perfect, you will have to deal with outliers and other issues, but for the ease of this tutorial we continue with this data set.
+
+Because of this negative linear relationship we can potentially use elevation to fill our missing data. To do so, we first fit a linear model to explain temperature as a function of elevation. 
+
+We will fit a simple linear model of the type:
+
+\begin{align}
+t_i = \beta_0 + \beta_1 e_i + \epsilon_i
+\end{align}
+
+where:
+
+  - $t_i$ is temperature of observation $i$,
+  - $e_i$ is elevation of observation $i$,
+  - $\epsilon_i$ is the error term corresponding to observation $i$. We assume the error terms $\epsilon_i$:
+  
+    * have mean zero: $\mathbb{E}[\epsilon_i]=0$ for all $i$,
+    * are homoscedastic: $Var[\epsilon_i]=\sigma^2$ for all $i$,
+    * are not autocorrelated: $Cor[\epsilon_i, \epsilon_j]=0$ for all $i,j$, and
+    * are distributed normally (not strictly necessary, but standard confidence intervals and hypothesis tests rely on this).
+    
+
+
+First, we use the lm() function to call the model. The lm() function can be filled using the formula interface using "~". The structure then is
+lm(predicted_variable~explanatory_variable). 
+If you need more information, you can call "?lm" to see the documentation.
+
+```{r}
+lm1 <- lm(temp_birds ~ elev_birds, data = bird_model_mat)
+
+#call the summary of the modell
+Sum_mod <- summary(lm1)
+
+# extract the coefficients from the modell
+names(Sum_mod)
+Sum_mod$coefficients
+r2 <- Sum_mod$r.squared
+Sum_mod$adj.r.squared
+
+```
+
+We see here, that elevation and temperature are highly correlated and the model has a good fit. Look at the coefficients, remember the formula for linear model, and try to put this output into words. 
+
+<p>
+  <a class="btn btn-primary" data-toggle="collapse" href="#collapseExample2" role="button" aria-expanded="false" aria-controls="collapseExample2">
+   Click to see the solution
+  </a>
+</p>
+<div class="collapse" id="collapseExample2">
+  <div class="card card-body">
+
+  <b> With every unit of elevation, the temperature drops 0.005°C
+  </b>
+ 
+  </div>
+</div>
+
+
+
+The line is clearly a good fit for our data. Do you have an idea how we could still improve the model?
+
+<p>
+  <a class="btn btn-primary" data-toggle="collapse" href="#collapseExample3" role="button" aria-expanded="false" aria-controls="collapseExample3">
+   Click to see the solution
+  </a>
+</p>
+<div class="collapse" id="collapseExample3">
+ <div class="card card-body"> 
+
+  <b> We could improve it by incorporating other environmental variables (e.g. slope, aspect) from which we know that they are highly correlated with temperature.
+  </b>
+
+  </div>
+</div>
+
+One way to assess the performance of the model is to check the *mean squared error* (MSE): the better the model fits the data, the lower the error term. There are different ways to calculate the model error (also called *loss*), which is why different loss functions exist. Linear models (LM) use the so called *least squares method* which minimizes the mean squared error when fitting a model.
+The *mean squared error* is a common metric for the goodness of fit of the model and can be mathematically expressed as:
+  \begin{align}
+\frac{1}{n}\sum_{i=1}^{n} (y_i - \hat{y_i})^2
+\end{align}
+
+where:
+
+- $n$ is the sample size
+
+- $y_i$ is the actual (observed) value of observation $_i$
+
+- $\hat{y_i}$ is the predcited value of observation $_i$
+
+
+We will now create a second model (lm2) that has a coefficient beta of 0.01. This translates to a reduction of 1 °C in temperature for each 100m of increase in elevation and is therefore a clearly inferior model. This can be visualized in the following plot:
+
+
+```{r}
+#create a second model m2 that is not a good fit of the data
+lm2 <- lm1
+lm2$coefficients[2] <- -0.01
+
+# now that we know the coefficients of the model, we can plot the line
+plot(bird_model_mat$elev_birds, bird_model_mat$temp_birds,xlab="Elevation m",ylab="Temperature °C")
+abline(lm1, col = "red")
+abline(lm2, col = "blue")
+legend("topright", legend=c('original model (lm1)', 'modified model (lm2)'), col=c('red', 'blue'), lwd=2)
+```
+
+We can extract the error term by subtracting the observed values from the modelled values. We square these error terms and take the mean to calculate the *mean squared error*.
+
+```{r calculate mse}
+mean((predict(lm1)-lm1$model$temp_birds)^2)
+mean((predict(lm2)-lm2$model$temp_birds)^2)
+```
+
+As expected, the MSE for *lm2* is much higher than for *lm1*, which means that this model fit is worse. 
+If you like, you can try to repeat this process for the other variables we plotted before. Think about the results, does it make sense? 
+
+Before we use the model to predict the missing temperature values, we should check that the model assumptions are met. 
+The easiest way to verify the model assumption is by a visual inspection. If we simply plot the model, R will show us four diagnostic plots.
+
+```{r}
+par(mfrow = c(2, 2))
+plot(lm1)
+```
+
+As you can see, the plots look generally ok. The ± horizontal red line without distinct patterns in the first plot (*residuals vs fitted*) indicates a linear relationship between elevation and temperature. The *scale-location* plot indicates the criterion of homoscedasticity is not violated. The residuals vs leverage plot shows no observations that have a high leverage on the model.
+However, the Q-Q-plot indicates that the error terms are not normally distributed. This is not a problem for now but should be kept in mind depending on what analysis you want to do with the data at a later point.
+
+Now lets come to the prediction of the environmental variables mentioned before, we want to use this model now to account for our NA values. R has a built in version for this predict.lm().
+
+```{r}
+#we assign the results of the predict lm directly to a new column. 
+bird_model_mat$predic.temp <- predict.lm(lm1, bird_model_mat) 
+
+###lets check our data again
+colSums(is.na(bird_model_mat))
+```
+
+Finally, we have a complete list of temperature values. Just be careful using them and don't forget, these values are now modeled and we need to take this into account if we interpret them later. 
+
+But let's assume we do not have continuous variables on both sites. What kind of model should we fit then? 
+In ecology you will often be confronted with presence/absence data of species for instance. Let's simulate such data, where we have species observation along a precipitation gradient:
+
+```{r}
+pres<-c(0,0,0,0,0,0,0,1,0,0,1,1,1,0,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,0,1,0,0,0,0,0,0,0)
+prcp<-c(1.0,1.4,1.5,1.7,2.0,2.1,2.8,3.0,3.2,3.3,3.5,3.8,4.0,4.1,4.4,4.7,4.8,4.9,5.0,5.1,5.3,5.4,5.5,6.0,6.1,6.1,6.3,6.4,6.8,6.9,7.0,7.4,7.9,8.5,8.6,8.7,8.8,9.0)
+table(pres)
+```
+
+```{r}
+ex.data <- data.frame(cbind(pres,prcp))
+plot(ex.data$prcp,ex.data$pres,xlab="Precipitation",ylab="Presence/Probability",pch=16,col="slategray3",xlim=c(-1,10),ylim = c(-0.1,1.1))
+```
+
+We see that there is now a different relation between the data. However, we want to fit a LM onto this data to explain the occurrences as a function of precipitation.
+
+```{r}
+ex.lm1 <- lm(pres ~ prcp, data = ex.data)
+summary(ex.lm1)
+coefficients(ex.lm1)
+```
+
+We immediately see, that the model is not performing really well. The Multiple R-squared value is very low, and also the models p-value is at 0.83. In addition, remember the lm before, how would you interpret the intercept in this case? If we plot the data with the lm, we should see if the fit is really that bad.
+
+```{r}
+#par()
+plot(ex.data$prcp, ex.data$pres, xlab="Precipitation",ylab="Presence/Probability",pch=16,col="slategray3",xlim=c(-1,10),ylim = c(-0.1,1.1))
+abline(ex.lm1, col = "red")
+legend("topright",legend=(bquote(atop(italic(R)^2 == .(format(summary(ex.lm1)$r.squared, digits = 1))))))
+```
+
+Indeed, if we plot it, we see immediately that this model is not a good fit to the data. Next, we will try to fit a quadratic function using a polynomial term and see if this works better. This just means, that the relationship between the data are not explained directly, but with the help of a quadratic function. Lets try try that using the poly() function.
+
+```{r}
+ex.lm2 <- lm(pres ~ poly(prcp, 2), data = ex.data)
+summary(ex.lm2)
+```
+
+It seems, that the use of a quadratic function improved the model. The multiple R-squared value is higher than before, indicating a somewhat better fit. 
+
+But before we come to any conclusions, let us plot the regression results against the original points along our gradient. 
+
+```{r}
+nwdt <- data.frame(prcp = seq(1,9, length.out=1000)) #this simulates some some precipitation values we can use to predict our data
+
+plot(prcp,pres, xlim=c(-1,10), ylim=c(-0.1, 1.1),
+     pch = 16, xlab = "Precipitation", ylab = "Presence/Probability", 
+     main = "LM regression results")
+
+#first plot the linear data
+prd.l <- predict(ex.lm1, newdata=nwdt, type = "response")
+lines(nwdt$prcp, prd.l, col = "slategray4")
+
+#quadratic function
+prd.q <- predict(ex.lm2, newdata = nwdt, type = "response")
+lines(nwdt$prcp, prd.q, col = "firebrick4")
+
+abline(1,0, lty = 3, col = "grey70")
+abline(0,0, lty = 3, col = "grey70")
+legend(-1,0.8, col = c("black", "slategray4", "firebrick4"),
+       legend = c("Species occurence", "linear LM", "quadratic LM"),
+       pch = c(16, NA, NA), lty = c(NA, 1, 1), cex = 0.75, bty = "n")
+```
+
+
+Looking at the plot, it is obvious that none of the models really can predict our presence/absence data. With our current model, precipitation values below 1.5 and above 8.5 would lead to a negative predicted presence of the species.The structure of the data as we have it, can not be explained by a linear model, therefore we need another solution. As we have a binomial type of distribution data (the species is either there or not 1/0) and also some restrictions where it occurs (prec < 3 and prec >7 = 0), the most promising type of models to analyze our data will be a "Generalized linear regression model" or "GLM".  
+
+Checking if the model assumptions are met can also give hints whether our model choice is appropriate or not. How would you check this visually?
+
+<p>
+  <a class="btn btn-primary" data-toggle="collapse" href="#collapseExample4" role="button" aria-expanded="false" aria-controls="collapseExample4">
+   Click to see the solution
+  </a>
+</p>
+<div class="collapse" id="collapseExample4">
+  <div class="card card-body">
+
+```{r}
+par(mfrow = c(2, 2))
+plot(ex.lm2)
+```
+
+  <a> As you can see, the model assumptions are heavily violated: The relationship of precipitation and species presence can not be described by a linear model.
+  </a>
+ 
+  </div>
+</div>
+
+## GLM
+
+As a quick reminder from your theoretical introduction. GLMs summarizes different family of parametric models, which use a link-function to explain the shape of the curve. There are several families, like "Gaussian", "Poisson" or "Binomial". In this tutorial, we will focus on the latter, as we already identified our example data to have a binomial distribution.
+
+First, we calculate a binomial GLM to explain presence of our "species" as a function of precipitation. The neat part about binomial GLM is, that they can deal with dependent variables bound by upper or lower boundaries. Therefore they are often used for presence/absence, fractions or percentages. In R, we can fit most of these models using the glm() function. As always, the documentation (?glm) should be the first thing to look at when using a new function the first time, this helps to understand the parameters you need to set, the ones you can set and also to see what output the function generates.
+
+### Info box: Link types for glm
+When handling data from different environmental systems, these data come in a variety of distributions. The most commonly known distribution is the normal distribution. However, not all data are centered evenly around a mean and some types of data have natural boundaries. Count data for example can't logically go below 0. If we tried to model different types of data with the same assumptions, like for example model binary data and exponential data with a normal distribution, our predictions and explanations would be nonsensical. Therefore, we need specific distributions for different data. In the glm function, these distributions can be specified in the link function. Some classic examples are poisson family for count data, binomial for binary data (presence / absence) and gaussian for normally distributed data. Using the right link function and therefore the right distribution for the data allows us to find underlying patterns and processes in the data. 
+
+We will use the glm() function with the same terms as above. 
+
+```{r glm linear term}
+ex.glm1 <- glm(pres ~ prcp, data = ex.data, family = "binomial")
+summary(ex.glm1)
+```
+
+We see, that the linear term is not really useful to explain our data. So lets try the polynomial again.
+
+```{r glm polynomial}
+ex.glm2 <- glm(pres ~ poly(prcp, 2), family = "binomial", data = ex.data)
+summary(ex.glm2)
+```
+
+This model seems to perform better already. What do you see when observing this output? In contrast to the outputs of the LM, we do not immediately get an R² value. This means, we need to calculate it on our own based on information stored in the GLM object. 
+
+The formula to calculate the R² value is: R² = [(Null.Variance - Residual.Variance)/Null.Variance]
+
+This gives you the "variance explained" by your model. A GLM is always based to maximize the likelihood of your fitted function when calculating the regression (maximum likelihood).
+
+Now let us first look into the glm object to identify what we need to extract. You can either check th documentation to see how the output looks like, or we just look at the object we already have: 
+
+```{r glm object}
+names(ex.glm2)
+```
+ 
+Within this object we can find everything we need to calculate the R². In a glm object, the variance can also be called deviance (D²), because of that we will take the null.deviance and the deviance to calculate our explained variation. 
+ 
+```{r calculate r²}
+r2_glm <- (ex.glm2$null.deviance - ex.glm2$deviance)/ex.glm2$null.deviance
+r2_glm
+```
+
+This looks ok, the variables we used in the quadratic model explain around `r round(r2_glm*100, 0)`% of the variation within the data. 
+Based on this model we therefore can predict species occurrences (0/1) using the predict function again. We will repeat the same plot we did for the LM, but this time we predict using the GLM on our precipitation gradient. 
+
+```{r plot glm}
+plot(prcp,pres, xlim=c(-1,10), ylim=c(-0.1, 1.1),
+     pch = 16, xlab = "Precipitation", ylab = "Presence/Probability", 
+     main = "GLM regression results")
+
+
+#first plot the linear data
+prd.l <- predict(ex.glm1, newdata=nwdt, type = "response")
+lines(nwdt$prcp, prd.l, col = "slategray4")
+
+#quadratic function
+prd.q <- predict(ex.glm2, newdata = nwdt, type = "response")
+lines(nwdt$prcp, prd.q, col = "firebrick4")
+
+abline(1,0, lty = 3, col = "grey70")
+abline(0,0, lty = 3, col = "grey70")
+legend(-1,0.8, col = c("black", "slategray4", "firebrick4"),
+       legend = c("Species occurence", "linear glm", "quadratic glm"),
+       pch = c(16, NA, NA), lty = c(NA, 1, 1), cex = 0.75, bty = "n")
+```
+
+At first glance, the whole plot looks similar to the one we produced before. However, it is clear that this plot is bound between 0 and 1, while the one before did not follow these boundaries. Be aware, that it is not possible to directly predict a presence or absence, instead, we predict probabilities that a 0 turns to 1 or the other way around. This means, at a given precipitation we have a certain possibility for a species to occur, the exact threshold is not easy to determine and there are a lot of methods for that. However, they are not part of this tutorial and  therefore we would just assume 50% as the tipping point between presence and absence. 
+
+In addition, it is quite unlikely that one variable alone is enough to explain habitat suitability for species. It is our task as ecologists and environmental scientists to determine which variables are most likely predicting the suitability of a habitat to a species. There are options for model selection, where one can directly compare models and then step wise add or remove single variables (e.g. AIC/BIC). 
+
+However, even then it is hard to implement multiple variables collected at the same sites, as a lot of them are correlated to each other or do not fulfill model assumptions. To tackle these issues, we need methods to simplify complexity within our data and reduce the dimensions as far as possible. Here, principal component analysis or other ordinations can be a helpful addition.
